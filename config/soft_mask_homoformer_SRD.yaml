@@ -1,0 +1,61 @@
+name: sam_head_removal_BCE+IOU
+version: version_1
+phase: train
+samshadow_ckpt_path: /home/xinrui/projects/ShadowDiffusion/experiments_lightning/sam_head_removal_BCE+IOU/version_2_separate_optimize/epoch=119.ckpt
+save_result_path: /home/xinrui/projects/ShadowDiffusion/experiments_lightning/sam_head_removal_BCE+IOU/version_2_separate_optimize/119
+
+ckpt_path:
+  'sam': /home/xinrui/projects/ShadowDiffusion/experiments/official_test/SAM_adapter_ckpt/model_epoch_best.pth
+  'homoformer': "/home/xinrui/projects/HomoFormer/log/pretrain_ckpt/SRD.pth"
+
+unfreeze_sam_head: True
+detach_sam: True
+homoformer_loss_scale: 1
+# Train param
+max_epochs: 200
+every_n_epochs: 20
+gpu_ids: [0, 1]
+
+# Sam
+sam:
+  input_size: 1024
+  loss: iou
+
+batch_size: 8
+nepoch: 600
+train_workers: 4
+eval_workers: 4
+dataset: SRD
+optimizer: adam
+lr_initial: 0.0002
+weight_decay: 0.0
+arch: HomoFormer
+mode: shadow
+
+save_dir: ./log
+save_images: True
+env: _srd
+checkpoint: 200
+
+norm_layer: nn.LayerNorm
+embed_dim: 32
+win_size: 8
+token_projection: linear
+token_mlp: leff
+att_se: false
+
+vit_dim: 256
+vit_depth: 12
+vit_nheads: 8
+vit_mlp_dim: 512
+vit_patch_size: 16
+global_skip: false
+local_skip: false
+vit_share: false
+
+train_ps: 256
+train_dir: "/home/xinrui/projects/ShadowDiffusion/dataset/SRD_DHAN_mask_B/train/"
+test_dir: "/home/xinrui/projects/ShadowDiffusion/dataset/SRD_DHAN_mask_B/test/"
+warmup: true
+warmup_epochs: 5
+

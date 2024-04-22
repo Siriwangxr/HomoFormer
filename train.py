@@ -48,7 +48,7 @@ if not os.path.exists(log_dir):
 logname = os.path.join(log_dir, datetime.datetime.now().isoformat()+'.txt')
 print("Now time is : ", datetime.datetime.now().isoformat())
 result_dir = os.path.join(log_dir, 'results')
-model_dir  = os.path.join(log_dir, 'models')
+model_dir = os.path.join(log_dir, 'models')
 utils.mkdir(result_dir)
 utils.mkdir(model_dir)
 
@@ -72,7 +72,7 @@ start_epoch = 1
 if opt.optimizer.lower() == 'adam':
     optimizer = optim.Adam(model_restoration.parameters(), lr=opt.lr_initial, betas=(0.9, 0.999),eps=1e-8, weight_decay=opt.weight_decay)
 elif opt.optimizer.lower() == 'adamw':
-        optimizer = optim.AdamW(model_restoration.parameters(), lr=opt.lr_initial, betas=(0.9, 0.999),eps=1e-8, weight_decay=opt.weight_decay)
+    optimizer = optim.AdamW(model_restoration.parameters(), lr=opt.lr_initial, betas=(0.9, 0.999),eps=1e-8, weight_decay=opt.weight_decay)
 else:
     raise Exception("Error optimizer...")
 
