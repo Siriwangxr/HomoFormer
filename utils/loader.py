@@ -1,7 +1,7 @@
 import os
 
 from dataset import DataLoaderTrain, DataLoaderVal, DataLoaderSBUVal
-def get_training_data(rgb_dir, img_options, plus=False):
+def get_training_data(rgb_dir, img_options=None, plus=False):
     assert os.path.exists(rgb_dir)
     return DataLoaderTrain(rgb_dir, img_options, None, plus=plus)
 

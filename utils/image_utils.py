@@ -187,9 +187,10 @@ def get_scoremap(H, W, C, B=1, is_mean=True):
 
 def mergeimage(split_data, starts, crop_size = 128, resolution=(1, 3, 128, 128)):
     B, C, H, W = resolution[0], resolution[1], resolution[2], resolution[3]
-    tot_score = torch.zeros((B, C, H, W))
-    merge_img = torch.zeros((B, C, H, W))
+    tot_score = torch.zeros((B, C, H, W)).to(split_data[0].device)
+    merge_img = torch.zeros((B, C, H, W)).to(split_data[0].device)
     scoremap = get_scoremap(crop_size, crop_size, C, B=B, is_mean=True)
+    scoremap = scoremap.to(split_data[0].device)
     for simg, cstart in zip(split_data, starts):
         hs, ws = cstart
         merge_img[:, :, hs:hs + crop_size, ws:ws + crop_size] += scoremap * simg

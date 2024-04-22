@@ -46,6 +46,12 @@ class DataLoaderTrain(Dataset):
             transforms.ToTensor(),
         ])
 
+        self.homo_transform = transforms.Compose([
+            transforms.ToPILImage(),
+            transforms.Resize((256, 256), interpolation=Image.NEAREST),
+            transforms.ToTensor(),
+        ])
+
     def __len__(self):
         return self.tar_size
 
@@ -56,38 +62,49 @@ class DataLoaderTrain(Dataset):
         mask = load_mask(self.mask_filenames[tar_index])
         mask = torch.from_numpy(np.float32(mask))
 
-        clean = clean.permute(2,0,1)
-        noisy = noisy.permute(2,0,1)
+        clean_0 = clean.permute(2,0,1)
+        noisy_0 = noisy.permute(2,0,1)
 
-        sam_img_SR = self.img_transform(noisy)
+
+        sam_img_SR = self.img_transform(noisy_0)
         sam_img_mask = self.mask_transform(mask)
+
+        noisy = self.homo_transform(noisy_0)
+        clean = self.homo_transform(clean_0)
 
         clean_filename = os.path.split(self.clean_filenames[tar_index])[-1]
         noisy_filename = os.path.split(self.noisy_filenames[tar_index])[-1]
         mask_filename = os.path.split(self.mask_filenames[tar_index])[-1]
 
-        #Crop Input and Target
-        ps = self.img_options['patch_size']
-        H = clean.shape[1]
-        W = clean.shape[2]
-        if H-ps==0:
-            r=0
-            c=0
-        else:
-            r = np.random.randint(0, H - ps)
-            c = np.random.randint(0, W - ps)
-        clean = clean[:, r:r + ps, c:c + ps]
-        noisy = noisy[:, r:r + ps, c:c + ps]
-        mask = mask[r:r + ps, c:c + ps]
-        random_number = random.getrandbits(3)
-        apply_trans = transforms_aug[random_number]
+        clean_filename = clean_filename.split(".")[0].replace("_free", "")
 
-        clean = getattr(augment, apply_trans)(clean)
-        noisy = getattr(augment, apply_trans)(noisy)        
-        mask = getattr(augment, apply_trans)(mask)
-        mask = torch.unsqueeze(mask, dim=0)
+        # #Crop Input and Target
+        # ps = self.img_options['patch_size']
+        # H = clean.shape[1]
+        # W = clean.shape[2]
+        # if H-ps==0:
+        #     r=0
+        #     c=0
+        # else:
+        #     r = np.random.randint(0, H - ps)
+        #     c = np.random.randint(0, W - ps)
+        # clean = clean[:, r:r + ps, c:c + ps]
+        # noisy = noisy[:, r:r + ps, c:c + ps]
+        # mask = mask[r:r + ps, c:c + ps]
+        # random_number = random.getrandbits(3)
+        # apply_trans = transforms_aug[random_number]
+        #
+        # clean = getattr(augment, apply_trans)(clean)
+        # noisy = getattr(augment, apply_trans)(noisy)
+        # mask = getattr(augment, apply_trans)(mask)
+        # mask = torch.unsqueeze(mask, dim=0)
+
+
+
+
+
         return {'HR':clean, 'SR': noisy, 'mask': mask,
-                'filename': clean_filename, 'image_size': (H, W),'crop_position': (r, c), 'trans_index': random_number,
+                'filename': clean_filename,
                 'sam_SR': sam_img_SR, 'sam_mask': sam_img_mask}
 
 
@@ -112,18 +129,27 @@ class DataLoaderVal(Dataset):
         self.noisy_filenames = [os.path.join(rgb_dir, input_dir, x) for x in noisy_files if is_png_file(x)]
         self.mask_filenames = [os.path.join(rgb_dir, mask_dir, x) for x in mask_files if is_png_file(x)]
 
-        self.tar_size = len(self.clean_filenames)  
+        self.tar_size = len(self.clean_filenames)
+
+        self.img_transform = transforms.Compose([
+            transforms.ToPILImage(),
+            transforms.Resize((1024, 1024)),
+            transforms.ToTensor(),
+            transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                                 std=[0.229, 0.224, 0.225])
+        ])
+        self.mask_transform = transforms.Compose([
+            transforms.ToPILImage(),
+            transforms.Resize((256, 256), interpolation=Image.NEAREST),
+            transforms.ToTensor(),
+        ])
 
     def __len__(self):
         return self.tar_size
+        # return 3
 
     def __getitem__(self, index):
         tar_index   = index % self.tar_size
-
-        # clean = torch.from_numpy(np.float32(load_resize_img(self.clean_filenames[tar_index])))
-        # noisy = torch.from_numpy(np.float32(load_resize_img(self.noisy_filenames[tar_index])))
-        # mask = load_resize_mask(self.mask_filenames[tar_index])
-
         clean = torch.from_numpy(np.float32(load_img(self.clean_filenames[tar_index])))
         noisy = torch.from_numpy(np.float32(load_img(self.noisy_filenames[tar_index])))
         mask = load_mask(self.mask_filenames[tar_index])
@@ -133,11 +159,19 @@ class DataLoaderVal(Dataset):
         noisy_filename = os.path.split(self.noisy_filenames[tar_index])[-1]
         mask_filename = os.path.split(self.mask_filenames[tar_index])[-1]
 
+        clean_filename = clean_filename.split(".")[0].replace("_free", "")
+
         clean = clean.permute(2,0,1)
         noisy = noisy.permute(2,0,1)
         mask = torch.unsqueeze(mask, dim=0)
 
-        return clean, noisy, mask, clean_filename, noisy_filename
+        sam_img_SR = self.img_transform(noisy)
+        sam_img_mask = self.mask_transform(mask)
+
+        # return clean, noisy, mask, clean_filename, noisy_filename
+        return {'HR':clean, 'SR': noisy, 'mask': mask,
+                'filename': clean_filename,
+                'sam_SR': sam_img_SR, 'sam_mask': sam_img_mask}
 
 
 ##################################################################################################

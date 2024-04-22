@@ -5,11 +5,13 @@ from tqdm import tqdm
 
 import torch.nn as nn
 import torch
+from PIL import Image
 from torch.utils.data import DataLoader
 import torch.nn.functional as F
 from utils.image_utils import splitimage, mergeimage
 import scipy.io as sio
 from utils.loader import get_validation_data
+import utils.metrics as Metrics
 import utils
 import cv2
 
@@ -19,9 +21,9 @@ from skimage.metrics import structural_similarity as ssim_loss
 from sklearn.metrics import mean_squared_error as mse_loss
 
 parser = argparse.ArgumentParser(description='RGB denoising evaluation on the validation set of SIDD')
-parser.add_argument('--input_dir', default='./dataset/SRD_DHAN_mask_old/test/',
+parser.add_argument('--input_dir', default='/home/xinrui/projects/HomoFormer/dataset/SRD_DHAN_mask_old/test/',
     type=str, help='Directory of validation images')
-parser.add_argument('--result_dir', default='./log/test_pretrain_model/',
+parser.add_argument('--result_dir', default='./log/test_pretrain_model_old_dataset/',
     type=str, help='Directory for results')
 parser.add_argument('--weights', default='./log/pretrain_ckpt/SRD.pth',
     type=str, help='Path to weights')
@@ -56,6 +58,7 @@ os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
 os.environ["CUDA_VISIBLE_DEVICES"] = args.gpus
 
 utils.mkdir(args.result_dir)
+utils.mkdir(os.path.join(args.result_dir, "metrics_after_process"))
 
 test_dataset = get_validation_data(args.input_dir, plus=args.plus)
 test_loader = DataLoader(dataset=test_dataset, batch_size=1, shuffle=False, num_workers=8, drop_last=False)
@@ -81,11 +84,13 @@ with torch.no_grad():
     ssim_val_ns = []
     rmse_val_s = []
     rmse_val_ns = []
+    psnr = []
+    ssim = []
 
     for ii, data_test in tqdm(enumerate(test_loader, 0)):
         restored_list = []
-        filenames = data_test[3]
-        B, C, H, W = data_test[1].shape
+        filenames = data_test['filename']
+        B, C, H, W = data_test['SR'].shape
         print(filenames, "shape: ", H, W)
         if min(H, W) >= 384:
             tile = 384
@@ -96,9 +101,9 @@ with torch.no_grad():
         else:
             continue
         for _ in range(args.repeat // args.base_repeat):
-            rgb_gt = data_test[0].numpy().squeeze().transpose((1, 2, 0))
-            input = data_test[1].repeat(args.base_repeat, 1, 1, 1).cuda()
-            mask = data_test[2].repeat(args.base_repeat, 1, 1, 1).cuda()
+            rgb_gt = data_test['HR'].numpy().squeeze().transpose((1, 2, 0))
+            input = data_test['SR'].repeat(args.base_repeat, 1, 1, 1).cuda()
+            mask = data_test['mask'].repeat(args.base_repeat, 1, 1, 1).cuda()
             B, C, H, W = input.shape
 
             split_data, starts = splitimage(input, crop_size=tile, overlap_size=args.tile_overlap)
@@ -144,8 +149,37 @@ with torch.no_grad():
             rmse_val_s.append(rmse_temp_s)
             rmse_val_ns.append(rmse_temp_ns)
 
+
+            # calculate SSIM and PSNR using Metrics
+            res = (rgb_restored_ * 255.0).round()
+            res = res.astype(np.uint8)
+            hr_img = (rgb_gt * 255.0).round()
+            hr_img = hr_img.astype(np.uint8)
+            eval_psnr = Metrics.calculate_psnr(res, hr_img)
+            eval_ssim = Metrics.calculate_ssim(res, hr_img)
+            psnr.append(eval_psnr)
+            ssim.append(eval_ssim)
+
+            # store original output
+            original_output = Metrics.tensor2img(restored, out_type=np.uint8, min_max=(0, 1))
+
+
         if args.save_images:
-            utils.save_img(img_as_ubyte(rgb_restored), os.path.join(args.result_dir, filenames[0]))
+
+            # utils.save_img(img_as_ubyte(rgb_restored), os.path.join(args.result_dir, 'homoformer_eval', filenames[0]+'_sr.png'))
+            # utils.save_img(img_as_ubyte(data_test['HR'].numpy().squeeze().transpose((1, 2, 0))), os.path.join(args.result_dir, 'homoformer_eval', filenames[0] + '_hr.png'))
+            sr_path = os.path.join(args.result_dir, "metrics_after_process",f'{filenames[0]}_sr.png')
+            hr_path = os.path.join(args.result_dir, "metrics_after_process",f'{filenames[0]}_hr.png')
+            original_output_path = os.path.join(args.result_dir, "metrics_after_process", f'{filenames[0]}_bigSR.png')
+
+            # res = Metrics.tensor2img(restored)
+            sr_img = Image.fromarray(res)
+            sr_img.save(sr_path)
+            hr_img = Image.fromarray(hr_img)
+            hr_img.save(hr_path)
+            original_output = Image.fromarray(original_output)
+            original_output.save(original_output_path)
+
 
 if args.cal_metrics:
     psnr_val_rgb = sum(psnr_val_rgb)/len(test_dataset)
@@ -157,7 +191,15 @@ if args.cal_metrics:
     rmse_val_rgb = sum(rmse_val_rgb) / len(test_dataset)
     rmse_val_s = sum(rmse_val_s) / len(test_dataset)
     rmse_val_ns = sum(rmse_val_ns) / len(test_dataset)
+    PSNR = np.mean(psnr)
+    SSIM = np.mean(ssim)
+
     print("PSNR: %f, SSIM: %f, RMSE: %f " %(psnr_val_rgb, ssim_val_rgb, rmse_val_rgb))
     print("SPSNR: %f, SSSIM: %f, SRMSE: %f " %(psnr_val_s, ssim_val_s, rmse_val_s))
     print("NSPSNR: %f, NSSSIM: %f, NSRMSE: %f " %(psnr_val_ns, ssim_val_ns, rmse_val_ns))
+    print(f"my PSNR: {PSNR}")
+    print(f"my SSIM: {SSIM}")
+
+
+
 

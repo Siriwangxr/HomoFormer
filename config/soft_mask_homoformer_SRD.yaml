@@ -1,14 +1,17 @@
-name: sam_head_removal_BCE+IOU
+name: fix_sam
 version: version_1
 phase: train
-samshadow_ckpt_path: /home/xinrui/projects/ShadowDiffusion/experiments_lightning/sam_head_removal_BCE+IOU/version_2_separate_optimize/epoch=119.ckpt
-save_result_path: /home/xinrui/projects/ShadowDiffusion/experiments_lightning/sam_head_removal_BCE+IOU/version_2_separate_optimize/119
+samshadow_ckpt_path: ./experiments_lightning/sam_head_removal_BCE+IOU/version_1/epoch=99.ckpt
+save_result_path: ./experiments_lightning/sam_head_removal_BCE+IOU/version_1/99
 
 ckpt_path:
   'sam': /home/xinrui/projects/ShadowDiffusion/experiments/official_test/SAM_adapter_ckpt/model_epoch_best.pth
-  'homoformer': "/home/xinrui/projects/HomoFormer/log/pretrain_ckpt/SRD.pth"
+  'homoformer': /home/xinrui/projects/HomoFormer/log/pretrain_ckpt/SRD.pth
+#ckpt_path:
+#  'sam': /home/user/Documents/projects/sam_shadow_removal/SAM-Adapter-PyTorch/checkpoints/best_results/istd/model_epoch_best.pth
+#  'homoformer': ./log/pretrain_ckpt/SRD.pth
 
-unfreeze_sam_head: True
+unfreeze_sam_head: False
 detach_sam: True
 homoformer_loss_scale: 1
 # Train param
@@ -22,6 +25,7 @@ sam:
   loss: iou
 
 batch_size: 8
+val_batch_size: 1
 nepoch: 600
 train_workers: 4
 eval_workers: 4
@@ -54,6 +58,9 @@ local_skip: false
 vit_share: false
 
 train_ps: 256
+tile_overlap: 30
+repeat: 1
+base_repeat: 1
 train_dir: "/home/xinrui/projects/ShadowDiffusion/dataset/SRD_DHAN_mask_B/train/"
 test_dir: "/home/xinrui/projects/ShadowDiffusion/dataset/SRD_DHAN_mask_B/test/"
 warmup: true
