@@ -204,15 +204,15 @@ class SamShadow(L.LightningModule):
         sam_input = train_data['sam_SR']
         sam_pred_mask_, sam_pred_soft_mask = self.sam(sam_input)
         sam_pred_soft_mask = torch.sigmoid(sam_pred_soft_mask)
-        if self.args.detach_sam:
-            soft_mask = sam_pred_soft_mask.detach()
-        else:
+        if not self.args.detach_sam and self.args.unfreeze_sam_head:
             soft_mask = sam_pred_soft_mask
-        train_data['mask'] = soft_mask # 256, 256
+        else:
+            soft_mask = sam_pred_soft_mask.detach()
+        mask = soft_mask # 256, 256
         target = train_data['HR']
         input_ = train_data['SR']
         # save_image(input_[0], 'input.png')
-        mask = train_data['mask']
+
         if self.current_epoch > 5:
             target, input_, mask = utils.MixUp_AUG().aug(target, input_, mask)
         restored = self.homoformer(input_, mask)
@@ -231,9 +231,10 @@ class SamShadow(L.LightningModule):
         # optimize SAM and homoformer saperately
         sam_optimizer, homoformer_optimizer = self.optimizers()
         homoformer_scheduler = self.lr_schedulers()
-        self.manual_backward(self.sam_backward_loss, retain_graph=True)
-        sam_optimizer.step()
-        sam_optimizer.zero_grad()
+        if self.args.unfreeze_sam_head:
+            self.manual_backward(self.sam_backward_loss, retain_graph=True)
+            sam_optimizer.step()
+            sam_optimizer.zero_grad()
 
         self.manual_backward(self.homoformer_loss)
         homoformer_optimizer.step()
@@ -376,7 +377,7 @@ def train(args: DictConfig) -> None:
         num_sanity_val_steps=0,
         # check_val_every_n_epoch=10,  #Haven't write val data yet
         log_every_n_steps=log_every_n_steps,
-        strategy=DDPStrategy(gradient_as_bucket_view=True, find_unused_parameters=True)
+        strategy=DDPStrategy(gradient_as_bucket_view=True)
     )
     trainer.fit(model, data_module)
 

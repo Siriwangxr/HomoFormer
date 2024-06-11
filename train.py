@@ -78,7 +78,7 @@ else:
 
 
 ######### DataParallel ###########
-model_restoration = torch.nn.DataParallel (model_restoration)
+# model_restoration = torch.nn.DataParallel (model_restoration)
 model_restoration.cuda()
 print_network(model_restoration)
 
@@ -113,7 +113,7 @@ train_dataset = get_training_data(opt.train_dir, img_options_train)
 train_loader = DataLoader(dataset=train_dataset, batch_size=opt.batch_size, shuffle=True,
         num_workers=opt.train_workers, pin_memory=True, drop_last=False)
 
-val_dataset = get_training_data(opt.val_dir, img_options_train)
+val_dataset = get_validation_data(opt.val_dir, img_options_train)
 val_loader = DataLoader(dataset=val_dataset, batch_size=1, shuffle=False,
         num_workers=opt.eval_workers, pin_memory=True, drop_last=False)
 
@@ -126,7 +126,7 @@ print('===> Start Epoch {} End Epoch {}'.format(start_epoch,opt.nepoch))
 best_psnr = 0
 best_epoch = 0
 best_iter = 0
-eval_now = 1000
+eval_now = 100
 print("\nEvaluation after every {} Iterations !!!\n".format(eval_now))
 
 loss_scaler = NativeScaler()
@@ -141,13 +141,13 @@ for epoch in range(start_epoch, opt.nepoch + 1):
         # zero_grad
         index += 1
         optimizer.zero_grad()
-        target = data[0].cuda()
-        input_ = data[1].cuda()
-        mask = data[2].cuda()
+        target = data['HR'].cuda()
+        input_ = data['SR'].cuda()
+        mask = data['mask'].cuda()
         if epoch > 5:
             target, input_, mask = utils.MixUp_AUG().aug(target, input_, mask)
         with torch.cuda.amp.autocast():
-            restored = model_restoration(input_)
+            restored = model_restoration(input_, mask)
             restored = torch.clamp(restored,0,1)
             loss = criterion(restored, target)
         loss_scaler(
@@ -162,10 +162,10 @@ for epoch in range(start_epoch, opt.nepoch + 1):
                 model_restoration.eval()
                 psnr_val_rgb = []
                 for ii, data_val in enumerate((val_loader), 0):
-                    target = data_val[0].cuda()
-                    input_ = data_val[1].cuda()
-                    mask = data_val[2].cuda()
-                    filenames = data_val[3]
+                    target = data_val['HR'].cuda()
+                    input_ = data_val['SR'].cuda()
+                    mask = data_val['mask'].cuda()
+                    filenames = data_val['filename']
                     with torch.cuda.amp.autocast():
                         restored = model_restoration(input_)
                     restored = torch.clamp(restored,0,1)

@@ -12,7 +12,7 @@ def is_image_file(filename):
     return any(filename.endswith(extension) for extension in [".jpg"])
 
 def is_png_file(filename):
-    return any(filename.endswith(extension) for extension in [".png", "jpg"])
+    return any(filename.endswith(extension) for extension in [".png", ".jpg"])
 
 def is_pkl_file(filename):
     return any(filename.endswith(extension) for extension in [".pkl"])

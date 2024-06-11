@@ -7,23 +7,23 @@ class Options():
 
     def init(self, parser):        
         # global settings
-        parser.add_argument('--batch_size', type=int, default=8, help='batch size')
+        parser.add_argument('--batch_size', type=int, default=16, help='batch size')
         parser.add_argument('--nepoch', type=int, default=600, help='training epochs')
         parser.add_argument('--train_workers', type=int, default=4)
         parser.add_argument('--eval_workers', type=int, default=4)
-        parser.add_argument('--dataset', type=str, default ='ISTD')
+        parser.add_argument('--dataset', type=str, default ='SRD')
         parser.add_argument('--pretrain_weights',type=str, default='./log/model_best.pth', help='path of pretrained_weights')
         parser.add_argument('--optimizer', type=str, default ='adam', help='optimizer for training')
         parser.add_argument('--lr_initial', type=float, default=0.0002, help='initial learning rate')
         parser.add_argument('--weight_decay', type=float, default=0.0, help='weight decay')
-        parser.add_argument('--gpu', type=str, default='0,1', help='GPUs')
-        parser.add_argument('--arch', type=str, default ='UniformShadow',  help='archtechture')
+        parser.add_argument('--gpu', type=str, default='0', help='GPUs')
+        parser.add_argument('--arch', type=str, default ='HomoFormer',  help='archtechture')
         parser.add_argument('--mode', type=str, default ='shadow',  help='image restoration mode')
         
         # args for saving 
-        parser.add_argument('--save_dir', type=str, default ='./log',  help='save dir')
+        parser.add_argument('--save_dir', type=str, default ='./log/train_to_256',  help='save dir')
         parser.add_argument('--save_images', action='store_true',default=False)
-        parser.add_argument('--env', type=str, default ='_istd',  help='env')
+        parser.add_argument('--env', type=str, default ='_srd',  help='env')
         parser.add_argument('--checkpoint', type=int, default=200, help='checkpoint')
 
         # args for Uformer
@@ -47,8 +47,8 @@ class Options():
         # args for training
         parser.add_argument('--train_ps', type=int, default=256, help='patch size of training sample')
         parser.add_argument('--resume', action='store_true', default=False)
-        parser.add_argument('--train_dir', type=str, default ='/gdata2/xiaojie/Dataset/ISTD_Dataset/train',  help='dir of train data')
-        parser.add_argument('--val_dir', type=str, default ='/gdata2/xiaojie/Dataset/ISTD_Dataset/test',  help='dir of train data')
+        parser.add_argument('--train_dir', type=str, default ='./dataset/SRD_DHAN_mask_old/train',  help='dir of train data')
+        parser.add_argument('--val_dir', type=str, default ='./dataset/SRD_DHAN_mask_old/test',  help='dir of train data')
         parser.add_argument('--warmup', action='store_true', default=True, help='warmup')
         parser.add_argument('--warmup_epochs', type=int, default=5, help='epochs for warmup')
 

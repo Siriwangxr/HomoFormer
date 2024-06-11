@@ -26,9 +26,9 @@ class DataLoaderTrain(Dataset):
         noisy_files = sorted(os.listdir(os.path.join(rgb_dir, input_dir)))
         mask_files = sorted(os.listdir(os.path.join(rgb_dir, mask_dir)))
         
-        self.clean_filenames = [os.path.join(rgb_dir, gt_dir, x) for x in clean_files if is_png_file(x)]
-        self.noisy_filenames = [os.path.join(rgb_dir, input_dir, x) for x in noisy_files if is_png_file(x)]
-        self.mask_filenames = [os.path.join(rgb_dir, mask_dir, x) for x in mask_files if is_png_file(x)]
+        self.clean_filenames = [os.path.join(rgb_dir, gt_dir, x) for x in clean_files]
+        self.noisy_filenames = [os.path.join(rgb_dir, input_dir, x) for x in noisy_files]
+        self.mask_filenames = [os.path.join(rgb_dir, mask_dir, x) for x in mask_files]
 
         self.img_options = img_options
 
@@ -48,7 +48,7 @@ class DataLoaderTrain(Dataset):
 
         self.homo_transform = transforms.Compose([
             transforms.ToPILImage(),
-            transforms.Resize((256, 256), interpolation=Image.NEAREST),
+            transforms.Resize((256, 256)),
             transforms.ToTensor(),
         ])
 
@@ -57,13 +57,13 @@ class DataLoaderTrain(Dataset):
 
     def __getitem__(self, index):
         tar_index   = index % self.tar_size
-        clean = torch.from_numpy(np.float32(load_img(self.clean_filenames[tar_index])))
-        noisy = torch.from_numpy(np.float32(load_img(self.noisy_filenames[tar_index])))
+        clean_0 = torch.from_numpy(np.float32(load_img(self.clean_filenames[tar_index])))
+        noisy_0 = torch.from_numpy(np.float32(load_img(self.noisy_filenames[tar_index])))
         mask = load_mask(self.mask_filenames[tar_index])
         mask = torch.from_numpy(np.float32(mask))
 
-        clean_0 = clean.permute(2,0,1)
-        noisy_0 = noisy.permute(2,0,1)
+        clean_0 = clean_0.permute(2,0,1).contiguous()
+        noisy_0 = noisy_0.permute(2,0,1).contiguous()
 
 
         sam_img_SR = self.img_transform(noisy_0)
@@ -97,7 +97,8 @@ class DataLoaderTrain(Dataset):
         # clean = getattr(augment, apply_trans)(clean)
         # noisy = getattr(augment, apply_trans)(noisy)
         # mask = getattr(augment, apply_trans)(mask)
-        # mask = torch.unsqueeze(mask, dim=0)
+        mask = torch.unsqueeze(mask, dim=0)
+        mask = self.homo_transform(mask)
 
 
 
@@ -114,10 +115,10 @@ class DataLoaderVal(Dataset):
         super(DataLoaderVal, self).__init__()
 
         self.target_transform = target_transform
-        if plus:
-            gt_dir = 'test_C_fixed_official'
-        else:
-            gt_dir = 'test_C'
+        # if plus:
+        #     gt_dir = 'test_C_fixed_official'
+        # else:
+        gt_dir = 'test_C'
         input_dir = 'test_A'
         mask_dir = 'test_B'
         
@@ -144,6 +145,13 @@ class DataLoaderVal(Dataset):
             transforms.ToTensor(),
         ])
 
+        self.homo_transform = transforms.Compose([
+            transforms.ToPILImage(),
+            transforms.Resize((256, 256)),
+            transforms.ToTensor(),
+        ])
+
+
     def __len__(self):
         return self.tar_size
         # return 3
@@ -161,15 +169,19 @@ class DataLoaderVal(Dataset):
 
         clean_filename = clean_filename.split(".")[0].replace("_free", "")
 
-        clean = clean.permute(2,0,1)
-        noisy = noisy.permute(2,0,1)
+        clean = clean.permute(2,0,1).contiguous()
+        noisy = noisy.permute(2,0,1).contiguous()
         mask = torch.unsqueeze(mask, dim=0)
+
+        clean = self.homo_transform(clean)
+        noisy = self.homo_transform(noisy)
+        _mask = self.homo_transform(mask)
 
         sam_img_SR = self.img_transform(noisy)
         sam_img_mask = self.mask_transform(mask)
 
         # return clean, noisy, mask, clean_filename, noisy_filename
-        return {'HR':clean, 'SR': noisy, 'mask': mask,
+        return {'HR':clean, 'SR': noisy, 'mask': _mask,
                 'filename': clean_filename,
                 'sam_SR': sam_img_SR, 'sam_mask': sam_img_mask}
 

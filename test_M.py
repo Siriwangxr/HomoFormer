@@ -23,7 +23,7 @@ from sklearn.metrics import mean_squared_error as mse_loss
 parser = argparse.ArgumentParser(description='RGB denoising evaluation on the validation set of SIDD')
 parser.add_argument('--input_dir', default='/home/xinrui/projects/HomoFormer/dataset/SRD_DHAN_mask_old/test/',
     type=str, help='Directory of validation images')
-parser.add_argument('--result_dir', default='./log/test_pretrain_model_old_dataset/',
+parser.add_argument('--result_dir', default='./log/debug',
     type=str, help='Directory for results')
 parser.add_argument('--weights', default='./log/pretrain_ckpt/SRD.pth',
     type=str, help='Path to weights')
@@ -58,13 +58,13 @@ os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
 os.environ["CUDA_VISIBLE_DEVICES"] = args.gpus
 
 utils.mkdir(args.result_dir)
-utils.mkdir(os.path.join(args.result_dir, "metrics_after_process"))
+utils.mkdir(os.path.join(args.result_dir, "metrics_before_process"))
 
 test_dataset = get_validation_data(args.input_dir, plus=args.plus)
 test_loader = DataLoader(dataset=test_dataset, batch_size=1, shuffle=False, num_workers=8, drop_last=False)
 
 model_restoration = utils.get_arch(args)
-model_restoration = torch.nn.DataParallel(model_restoration)
+# model_restoration = torch.nn.DataParallel(model_restoration)
 
 utils.load_checkpoint(model_restoration, args.weights)
 print("===>Testing using weights: ", args.weights)
@@ -124,6 +124,8 @@ with torch.no_grad():
 
             rgb_restored_ = cv2.resize(rgb_restored*255.0, [256, 256], interpolation=cv2.INTER_AREA)/255.0
             rgb_gt = cv2.resize(rgb_gt*255.0, [256, 256], interpolation=cv2.INTER_AREA)/255.0
+            # rgb_restored_ = cv2.resize(rgb_restored*255.0, [256, 256], interpolation=cv2.INTER_LINEAR)/255.0
+            # rgb_gt = cv2.resize(rgb_gt*255.0, [256, 256], interpolation=cv2.INTER_LINEAR)/255.0
             rgb_restored_ = np.clip(rgb_restored_, 0, 1)
             rgb_gt = np.clip(rgb_gt, 0, 1)
             bm = cv2.resize(bm * 255.0, [256, 256], interpolation=cv2.INTER_AREA) / 255.0
@@ -151,10 +153,14 @@ with torch.no_grad():
 
 
             # calculate SSIM and PSNR using Metrics
-            res = (rgb_restored_ * 255.0).round()
-            res = res.astype(np.uint8)
-            hr_img = (rgb_gt * 255.0).round()
-            hr_img = hr_img.astype(np.uint8)
+            # res = (rgb_restored_ * 255.0).round()
+            # res = res.astype(np.uint8)
+            # hr_img = (rgb_gt * 255.0).round()
+            # hr_img = hr_img.astype(np.uint8)
+            restored = F.interpolate(restored,(256,256),mode='bilinear')
+            hr_img = F.interpolate(data_test['HR'],(256,256),mode='bilinear')
+            res = Metrics.tensor2img(restored, min_max=(0, 1))
+            hr_img = Metrics.tensor2img(hr_img, min_max=(0, 1))
             eval_psnr = Metrics.calculate_psnr(res, hr_img)
             eval_ssim = Metrics.calculate_ssim(res, hr_img)
             psnr.append(eval_psnr)
@@ -168,9 +174,9 @@ with torch.no_grad():
 
             # utils.save_img(img_as_ubyte(rgb_restored), os.path.join(args.result_dir, 'homoformer_eval', filenames[0]+'_sr.png'))
             # utils.save_img(img_as_ubyte(data_test['HR'].numpy().squeeze().transpose((1, 2, 0))), os.path.join(args.result_dir, 'homoformer_eval', filenames[0] + '_hr.png'))
-            sr_path = os.path.join(args.result_dir, "metrics_after_process",f'{filenames[0]}_sr.png')
-            hr_path = os.path.join(args.result_dir, "metrics_after_process",f'{filenames[0]}_hr.png')
-            original_output_path = os.path.join(args.result_dir, "metrics_after_process", f'{filenames[0]}_bigSR.png')
+            sr_path = os.path.join(args.result_dir, "metrics_before_process",f'{filenames[0]}_sr.png')
+            hr_path = os.path.join(args.result_dir, "metrics_before_process",f'{filenames[0]}_hr.png')
+            original_output_path = os.path.join(args.result_dir, "metrics_before_process", f'{filenames[0]}_bigSR.png')
 
             # res = Metrics.tensor2img(restored)
             sr_img = Image.fromarray(res)
